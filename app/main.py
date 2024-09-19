@@ -3,7 +3,7 @@ import struct
 
 def parse_header(header):
 
-    correlation_id = struct.unpack('>I', header[4:8])
+    correlation_id = struct.unpack('>I', header[4:8])[0]
     api_key, api_version, client_id = None, None, None
 
     return api_key, api_version, correlation_id, client_id
