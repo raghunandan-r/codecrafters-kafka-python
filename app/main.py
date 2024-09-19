@@ -5,7 +5,7 @@ def create_response(body):
 
     body_bytes = body.encode('utf-8')
 
-    msg_length = len(body_bytes)
+    msg_length = 8 + len(body_bytes)
     header = struct.pack('>II', msg_length, 7)
     return header + body_bytes
 
