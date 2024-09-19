@@ -25,7 +25,7 @@ def main():
             request = client_socket.recv(1024).decode('utf-8')
             print("Request Received: {request}")
 
-            response = 7
+            response = "dummy"
 
             full_response = create_response(response)
             client_socket.sendall(full_response)
