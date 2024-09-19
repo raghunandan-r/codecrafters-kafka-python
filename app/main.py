@@ -1,33 +1,45 @@
 import socket  # noqa: F401
 import struct
 
-def create_response(body):
+def parse_header(header):
+
+    api_key, api_version, correlation_id = struct.unpack('>HHI', header[:8])
+    client_id = None
+
+    return api_key, api_version, correlation_id, client_id
+
+def create_response(correlation_id, body):
 
     body_bytes = body.encode('utf-8')
 
     msg_length = 8 + len(body_bytes)
-    header = struct.pack('>II', msg_length, 7)
+    header = struct.pack('>II', msg_length, correlation_id)
     return header + body_bytes
 
 def main():
-    # You can use print statements as follows for debugging,
-    # they'll be visible when running tests.
-    print("LFG!!")
-
+    
     server = socket.create_server(("localhost", 9092), reuse_port=True)
 
     while True:
         client_socket, client_address = server.accept() # wait for client
-        print("Connection from {client_address}")
+        print(f"Connection from {client_address}")
 
         try:
+            request_header = client_socket.recv(16)
 
-            request = client_socket.recv(1024).decode('utf-8')
-            print("Request Received: {request}")
+            if len(request_header) < 8:
+                print("Incomplete header received")
+                continue
+            api_key, api_version, correlation_id, client_id = parse_header(request_header)
+            print(f"Received request: API Key: {api_key}, Version: {api_version}, Correlation ID: {correlation_id}, Client ID: {client_id}")
 
-            response = "dummy"
+            
+            request_body = client_socket.recv(1024).decode('utf-8')
+            print(f"Request Received: {request_body}")
 
-            full_response = create_response(response)
+            response = "response body dummy"
+
+            full_response = create_response(correlation_id, response)
             client_socket.sendall(full_response)
 
         except Exception as e:
