@@ -3,8 +3,8 @@ import struct
 
 def parse_header(header):
 
-    api_key, api_version, correlation_id = struct.unpack('>HHI', header[:8])
-    client_id = None
+    correlation_id = struct.unpack('>I', header[4:8])
+    api_key, api_version, client_id = None, None, None
 
     return api_key, api_version, correlation_id, client_id
 
