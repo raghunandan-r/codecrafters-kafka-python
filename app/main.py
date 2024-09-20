@@ -3,7 +3,7 @@ import struct
 
 def parse_header(header):
 
-    correlation_id = struct.unpack('>I', header[4:8])[0]
+    correlation_id = struct.unpack('>I', header[8:12])[0]
     api_key, api_version, client_id = None, None, None
 
     return api_key, api_version, correlation_id, client_id
@@ -26,7 +26,7 @@ def main():
 
         try:
             request_header = client_socket.recv(16)
-
+            print(f"request header: {request_header}")
             if len(request_header) < 8:
                 print("Incomplete header received")
                 continue
