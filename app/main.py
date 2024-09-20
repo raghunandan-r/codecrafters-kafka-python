@@ -14,12 +14,12 @@ def create_response(api_version, correlation_id, body):
 
     if api_version not in (0,1,2,3,4):
         body = struct.pack('>h',35)
+    else:
+        body = body.encode('utf-8') #check this for proper api version later
 
-    body_bytes = body.encode('utf-8')
-
-    msg_length = 8 + len(body_bytes)
+    msg_length = 4 + len(body)
     header = struct.pack('>II', msg_length, correlation_id)
-    return header + body_bytes
+    return header + body
 
 def main():
     
@@ -30,21 +30,19 @@ def main():
         print(f"Connection from {client_address}")
 
         try:
-            request_header = client_socket.recv(16)
+            request_header = client_socket.recv(12)
             print(f"request header: {request_header}")
-            if len(request_header) < 8:
+            if len(request_header) < 12:
                 print("Incomplete header received")
                 continue
             api_key, api_version, correlation_id, client_id = parse_header(request_header)
             print(f"Received request: API Key: {api_key}, Version: {api_version}, Correlation ID: {correlation_id}, Client ID: {client_id}")
 
             
-            request_body = client_socket.recv(1024).decode('utf-8')
-            print(f"Request Received: {request_body}")
+            # request_body = client_socket.recv(1024).decode('utf-8')
+            # print(f"Request Received: {request_body}")
 
-            response = "response body dummy"
-
-            full_response = create_response(api_version, correlation_id, response)
+            full_response = create_response(api_version, correlation_id, "response body dummy")
             client_socket.sendall(full_response)
 
         except Exception as e:
