@@ -3,12 +3,17 @@ import struct
 
 def parse_header(header):
 
+    api_key = struct.unpack('>H', header[4:6])[0]
+    api_version = struct.unpack('>H', header[6:8])[0]
     correlation_id = struct.unpack('>I', header[8:12])[0]
-    api_key, api_version, client_id = None, None, None
+    client_id = None
 
     return api_key, api_version, correlation_id, client_id
 
-def create_response(correlation_id, body):
+def create_response(api_version, correlation_id, body):
+
+    if api_version not in (0,1,2,3,4):
+        body = struct.pack('>h',35)
 
     body_bytes = body.encode('utf-8')
 
@@ -39,7 +44,7 @@ def main():
 
             response = "response body dummy"
 
-            full_response = create_response(correlation_id, response)
+            full_response = create_response(api_version, correlation_id, response)
             client_socket.sendall(full_response)
 
         except Exception as e:
