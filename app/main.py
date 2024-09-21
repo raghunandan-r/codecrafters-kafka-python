@@ -22,7 +22,7 @@ def create_response(api_version, correlation_id):
     api_key_count = struct.pack('>i', 1)
     api_key_entry = struct.pack('>hhh', 18, 0, 4)
     body = throttle_time_ms + error_code + api_key_count + api_key_entry
-    msg_length = 4 + len(body)
+    msg_length = len(body)
     header = struct.pack('>II', msg_length, correlation_id)
     return header + body
 
@@ -41,11 +41,11 @@ def main():
                 print("Incomplete header received")
                 continue
             api_key, api_version, correlation_id, client_id = parse_header(request_header)
-            print(f"Received request: API Key: {api_key}, Version: {api_version}, Correlation ID: {correlation_id}, Client ID: {client_id}")
+            print(f"Received header: API Key: {api_key}, Version: {api_version}, Correlation ID: {correlation_id}, Client ID: {client_id}")
 
             
             request_body = client_socket.recv(1024)
-            print(f"Request Received: {request_body}")
+            print(f"Request body: {request_body}")
 
             full_response = create_response(api_version, correlation_id)
             client_socket.sendall(full_response)
