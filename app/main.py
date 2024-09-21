@@ -3,27 +3,27 @@ import struct
 
 def parse_header(header):
 
-    api_key = struct.unpack('>H', header[4:6])[0]
-    api_version = struct.unpack('>H', header[6:8])[0]
-    correlation_id = struct.unpack('>I', header[8:12])[0]
+    api_key = struct.unpack('>h', header[4:6])[0]
+    api_version = struct.unpack('>h', header[6:8])[0]
+    correlation_id = struct.unpack('>i', header[8:12])[0]
     client_id = None
 
     return api_key, api_version, correlation_id, client_id
 
 def create_response(api_version, correlation_id):
 
-    if api_version not in (0,1,2,3,4):
+    if api_version not in [0, 1, 2, 3, 4]:
         error_code = struct.pack('>h',35)
     else:
         error_code = struct.pack('>h',0)
 
     throttle_time_ms = struct.pack('>i', 0)
 
-    api_key_count = struct.pack('>i', 1)
+    api_key_count = struct.pack('>h', 1)
     api_key_entry = struct.pack('>hhh', 18, 0, 4)
-    body = throttle_time_ms + error_code + api_key_count + api_key_entry
-    msg_length = len(body)
-    header = struct.pack('>II', msg_length, correlation_id)
+    body = error_code + api_key_count + api_key_entry + throttle_time_ms
+    msg_length = 4 + len(body)
+    header = struct.pack('>ii', msg_length, correlation_id)
     return header + body
 
 def main():
