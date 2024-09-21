@@ -40,6 +40,10 @@ def main():
             api_key, api_version, correlation_id, client_id = parse_header(request_header)
             print(f"Received request: API Key: {api_key}, Version: {api_version}, Correlation ID: {correlation_id}, Client ID: {client_id}")
 
+            
+            request_body = client_socket.recv(1024).decode('utf-8')
+            print(f"Request Received: {request_body}")
+
             full_response = create_response(api_version, correlation_id)
             client_socket.sendall(full_response)
 
