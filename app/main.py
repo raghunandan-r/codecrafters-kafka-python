@@ -1,4 +1,4 @@
-import socket  # noqa: F401
+import socket  
 import struct
 
 def parse_header(header):
@@ -17,9 +17,12 @@ def create_response(api_version, correlation_id):
     else:
         error_code = struct.pack('>h',0)
 
-    api_versions = struct.pack('>hhhh', 18, 0, 4, 0)
-    body = error_code + struct.pack('>i', 1) + api_versions
-    msg_length = 4 + 4 + len(body)
+    throttle_time_ms = struct.pack('>i', 0)
+
+    api_key_count = struct.pack('>i', 1)
+    api_key_entry = struct.pack('>hhh', 18, 0, 4)
+    body = throttle_time_ms + error_code + api_key_count + api_key_entry
+    msg_length = 4 + len(body)
     header = struct.pack('>II', msg_length, correlation_id)
     return header + body
 
@@ -41,7 +44,7 @@ def main():
             print(f"Received request: API Key: {api_key}, Version: {api_version}, Correlation ID: {correlation_id}, Client ID: {client_id}")
 
             
-            request_body = client_socket.recv(1024).decode('utf-8')
+            request_body = client_socket.recv(1024)
             print(f"Request Received: {request_body}")
 
             full_response = create_response(api_version, correlation_id)
