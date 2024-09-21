@@ -10,14 +10,16 @@ def parse_header(header):
 
     return api_key, api_version, correlation_id, client_id
 
-def create_response(api_version, correlation_id, body):
+def create_response(api_version, correlation_id):
 
     if api_version not in (0,1,2,3,4):
-        body = struct.pack('>h',35)
+        error_code = struct.pack('>h',35)
     else:
-        body = body.encode('utf-8') #check this for proper api version later
+        error_code = struct.pack('>h',0)
 
-    msg_length = 4 + len(body)
+    api_versions = struct.pack('>hhhh', 18, 0, 4, 0)
+    body = error_code + struct.pack('>i', 1) + api_versions
+    msg_length = 4 + 4 + len(body)
     header = struct.pack('>II', msg_length, correlation_id)
     return header + body
 
@@ -38,11 +40,7 @@ def main():
             api_key, api_version, correlation_id, client_id = parse_header(request_header)
             print(f"Received request: API Key: {api_key}, Version: {api_version}, Correlation ID: {correlation_id}, Client ID: {client_id}")
 
-            
-            request_body = client_socket.recv(1024).decode('utf-8')
-            print(f"Request Received: {request_body}")
-
-            full_response = create_response(api_version, correlation_id, "response body dummy")
+            full_response = create_response(api_version, correlation_id)
             client_socket.sendall(full_response)
 
         except Exception as e:
