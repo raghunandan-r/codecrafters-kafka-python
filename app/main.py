@@ -17,7 +17,7 @@ def create_response(api_version, correlation_id):
     else:
         error_code = struct.pack('>h',0)
 
-    throttle_time_ms = struct.pack('>i', 0)
+    throttle_time_ms = struct.pack('>I', 0)
 
     api_key_count = struct.pack('>B', 1)
     api_key_entry = struct.pack('>hhh', 18, 0, 4)
