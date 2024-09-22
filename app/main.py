@@ -1,57 +1,91 @@
-import socket  
+import socket
 import struct
+from enum import Enum, unique
+from dataclasses import dataclass
 
-def parse_header(header):
+@unique
+class ErrorCode(Enum):
+    NONE = 0
+    UNSUPPORTED_VERSION = 35
 
-    api_key = struct.unpack('>H', header[4:6])[0]
-    api_version = struct.unpack('>H', header[6:8])[0]
-    correlation_id = struct.unpack('>I', header[8:12])[0]
-    client_id = None
+@dataclass
+class KafkaRequest:
+    api_key: int
+    api_version: int
+    correlation_id: int
 
-    return api_key, api_version, correlation_id, client_id
+    @staticmethod
+    def from_client(client: socket.socket):
+        data = client.recv(2048)
+        if len(data) < 12:
+            raise ValueError("Incomplete Kafka request header received.")
+        return KafkaRequest(
+            api_key=int.from_bytes(data[4:6], byteorder='big'),
+            api_version=int.from_bytes(data[6:8], byteorder='big'),
+            correlation_id=int.from_bytes(data[8:12], byteorder='big'),
+        )
 
-def create_response(api_version, api_key, correlation_id):
-
-    header = struct.pack('>I', correlation_id)
-
-    if api_version not in [0, 1, 2, 3, 4]:
-        error_code = struct.pack('>h',35)
+def make_response(request: KafkaRequest):
+    # Determine the error code based on the API version
+    if request.api_version in [0, 1, 2, 3, 4]:
+        error_code = ErrorCode.NONE.value.to_bytes(2, byteorder='big')
     else:
-        error_code = struct.pack('>h',0)
+        error_code = ErrorCode.UNSUPPORTED_VERSION.value.to_bytes(2, byteorder='big')
 
-    api_key_count = struct.pack('>h', 1)
-    throttle_time_ms = struct.pack('>i', 0)
-    api_key_entry = struct.pack('>hhh', api_key, 0, 4)
-    body = error_code + api_key_count + api_key_entry + throttle_time_ms
-    total_length = 4 + len(header) + len(body)  # 4 bytes for length field itself
-    length_prefix = struct.pack('>I', total_length)
+    # ThrottleTimeMs set to 0 (no throttling)
+    throttle_time_ms = (0).to_bytes(4, byteorder='big')
 
-    return length_prefix + header + body
+    # Number of ApiKeys (1 in this case)
+    api_keys_count = (1).to_bytes(4, byteorder='big')
+
+    # ApiKey entry: ApiKey=18 (ApiVersions), MinVersion=0, MaxVersion=4
+    api_key_entry = struct.pack('>hhh', 18, 0, 4)  # Each 'h' is 2 bytes
+
+    # Construct the response body in the correct order
+    response_body = throttle_time_ms + error_code + api_keys_count + api_key_entry
+
+    # Calculate message length: Correlation ID (4 bytes) + Response Body (16 bytes)
+    message_length = 4 + len(response_body)  # 4 bytes for Correlation ID
+
+    # Frame Length: Total bytes following the Frame Length field
+    frame_length = message_length
+
+    # Pack the header: Frame Length and Correlation ID
+    frame_length_bytes = frame_length.to_bytes(4, byteorder='big')
+    correlation_id_bytes = request.correlation_id.to_bytes(4, byteorder='big')
+
+    # Complete response
+    full_response = frame_length_bytes + correlation_id_bytes + response_body
+
+    return full_response
 
 def main():
-    
     server = socket.create_server(("localhost", 9092), reuse_port=True)
+    print("Server is listening on localhost:9092")
 
     while True:
-        client_socket, client_address = server.accept() # wait for client
+        client_socket, client_address = server.accept()  # Wait for client
         print(f"Connection from {client_address}")
 
         try:
-            request_header = client_socket.recv(1024)
-            print(f"request header: {request_header}")
-            if len(request_header) < 12:
-                print("Incomplete header received")
-                continue
-            api_key, api_version, correlation_id, client_id = parse_header(request_header)
-            print(f"Received header: API Key: {api_key}, Version: {api_version}, Correlation ID: {correlation_id}, Client ID: {client_id}")
+            # Receive the first 12 bytes: Frame Length (4) + API Key (2) + API Version (2) + Correlation ID (4)
+            request = KafkaRequest.from_client(client_socket)
+            print(f"Received header: API Key: {request.api_key}, Version: {request.api_version}, "
+                  f"Correlation ID: {request.correlation_id}")
 
-            full_response = create_response(api_version, api_key, correlation_id)
+            # Receive the rest of the request if necessary
+            # For this test, we don’t need to process the request body
+
+            # Create the response based on the request
+            full_response = make_response(request)
+
+            # Send the response
             client_socket.sendall(full_response)
-            print(f"Sent response :{full_response.hex()}")
+            print(f"Sent response: {full_response.hex()}")
 
         except Exception as e:
             print(f"Error handling client: {e}")
-        
+
         finally:
             client_socket.close()
 
