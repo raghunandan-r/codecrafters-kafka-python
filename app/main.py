@@ -10,21 +10,23 @@ def parse_header(header):
 
     return api_key, api_version, correlation_id, client_id
 
-def create_response(api_version, correlation_id):
+def create_response(api_version, api_key, correlation_id):
+
+    header = struct.pack('>I', correlation_id)
 
     if api_version not in [0, 1, 2, 3, 4]:
         error_code = struct.pack('>h',35)
     else:
         error_code = struct.pack('>h',0)
 
-    throttle_time_ms = struct.pack('>I', 0)
-
     api_key_count = struct.pack('>B', 1)
-    api_key_entry = struct.pack('>hhh', 18, 0, 4)
+    throttle_time_ms = struct.pack('>I', 0)
+    api_key_entry = struct.pack('>hhh', api_key, 0, 4)
     body = error_code + api_key_count + api_key_entry + throttle_time_ms
-    msg_length = len(correlation_id) + len(body)
-    header = struct.pack('>II', msg_length, correlation_id)
-    return header + body
+    total_length = 4 + len(header) + len(body)  # 4 bytes for length field itself
+    length_prefix = struct.pack('>I', total_length)
+
+    return length_prefix + header + body
 
 def main():
     
@@ -47,7 +49,7 @@ def main():
             request_body = client_socket.recv(1024)
             print(f"Request body: {request_body}")
 
-            full_response = create_response(api_version, correlation_id)
+            full_response = create_response(api_version, api_key, correlation_id)
             client_socket.sendall(full_response)
 
         except Exception as e:
