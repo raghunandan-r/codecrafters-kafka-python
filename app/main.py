@@ -36,21 +36,21 @@ def make_response(request: KafkaRequest):
     throttle_time_ms = (0).to_bytes(4, byteorder='big')
 
     # Number of ApiKeys (1 in this case)
-    api_keys_count = (2).to_bytes(1, byteorder='big')
+    api_keys_count = (1).to_bytes(4, byteorder='big')  # Corrected to 4 bytes
 
     # ApiKey entry: ApiKey=18 (ApiVersions), MinVersion=0, MaxVersion=4
     api_key_entry = struct.pack('>hhh', 18, 0, 4)  # Each 'h' is 2 bytes
 
     # Construct the response body in the correct order
-    response_body = error_code + api_keys_count + api_key_entry + throttle_time_ms
+    response_body = throttle_time_ms + error_code + api_keys_count + api_key_entry  # Correct order
 
     # Calculate message length: Correlation ID (4 bytes) + Response Body (16 bytes)
-    message_length = 4 + len(response_body)  # 4 bytes for Correlation ID
+    message_length = 4 + len(response_body)  # 4 + 16 = 20 bytes
 
     # Frame Length: Total bytes following the Frame Length field
     frame_length = message_length
 
-    # Pack the header: Frame Length and Correlation ID
+    # Pack the Frame Length and Correlation ID
     frame_length_bytes = frame_length.to_bytes(4, byteorder='big')
     correlation_id_bytes = request.correlation_id.to_bytes(4, byteorder='big')
 
@@ -73,8 +73,9 @@ def main():
             print(f"Received header: API Key: {request.api_key}, Version: {request.api_version}, "
                   f"Correlation ID: {request.correlation_id}")
 
-            # Receive the rest of the request if necessary
-            # For this test, we don’t need to process the request body
+            # Receive the rest of the request body if necessary
+            # For this test stage, you can ignore or process it as needed
+            # request_body = client_socket.recv(1024)  # Not necessary for current test
 
             # Create the response based on the request
             full_response = make_response(request)
