@@ -36,13 +36,13 @@ def make_response(request: KafkaRequest):
     throttle_time_ms = (0).to_bytes(4, byteorder='big')
 
     # Number of ApiKeys (1 in this case)
-    api_keys_count = (1).to_bytes(4, byteorder='big')
+    api_keys_count = (2).to_bytes(1, byteorder='big')
 
     # ApiKey entry: ApiKey=18 (ApiVersions), MinVersion=0, MaxVersion=4
     api_key_entry = struct.pack('>hhh', 18, 0, 4)  # Each 'h' is 2 bytes
 
     # Construct the response body in the correct order
-    response_body = throttle_time_ms + error_code + api_keys_count + api_key_entry
+    response_body = error_code + api_keys_count + api_key_entry + throttle_time_ms
 
     # Calculate message length: Correlation ID (4 bytes) + Response Body (16 bytes)
     message_length = 4 + len(response_body)  # 4 bytes for Correlation ID
