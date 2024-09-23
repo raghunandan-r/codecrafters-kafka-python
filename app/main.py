@@ -1,6 +1,7 @@
 import socket
 from dataclasses import dataclass
 from enum import Enum, unique
+import threading
 
 @unique
 class ErrorCode(Enum):
@@ -45,29 +46,31 @@ def make_response(request: KafkaRequest):
     response_length = len(response_header) + len(response_body)
     return int(response_length).to_bytes(4) + response_header + response_body
 
-def handle_request(client: socket.socket):
-    while True:
-        request = KafkaRequest.from_client(client)
-        if request is None:
-            break
-        print(f"Received request: {request}")
-        response = make_response(request)
-        client.sendall(response)
-        print(f"sent response: {len(response)} in bytes")
+def handle_client(client: socket.socket, addr):
+    print(f"New request from {addr}")
+
+    try:
+        while True:
+            request = KafkaRequest.from_client(client)
+            if request is None:
+                break
+            print(f"Received request from {addr}: {request}")
+            response = make_response(request)
+            client.sendall(response)
+            print(f"sent response to {addr}: {len(response)} bytes")
+    except Exception as e:
+        print(f"Error handling client {addr}: {e}")
+    finally:
+        client.close()
+        print(f"Connection from {addr} closed.")
 
 def main():
     server = socket.create_server(("localhost", 9092), reuse_port=True)
-
+    
     while True:
         client, addr = server.accept()
-        print(f"New request from {addr}")
-        try:
-            handle_request(client)
-        except Exception as e:
-            print(f"Error handling request from client {e}")
-        finally:
-            client.close()
-            print(f"Connection from {addr} closed.")
+        client_thread = threading.Thread(target= handle_client, args=(client, addr))
+        client_thread.start()
 
 if __name__ == "__main__":
     main()
