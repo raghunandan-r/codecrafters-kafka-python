@@ -1,7 +1,8 @@
 import socket
+import threading
+import struct
 from dataclasses import dataclass
 from enum import Enum, unique
-import threading
 
 @unique
 class ErrorCode(Enum):
@@ -16,14 +17,12 @@ class KafkaRequest:
     @staticmethod
     def from_client(client: socket.socket):
         data = client.recv(2048)
-        return KafkaRequest(
-            api_key=int.from_bytes(data[4:6]),
-            api_version=int.from_bytes(data[6:8]),
-            correlation_id=int.from_bytes(data[8:12]),
-        )
+        api_key, api_version, correlation_id = struct.unpack('>HHI', data[4:12])
+        return KafkaRequest(api_key, api_version, correlation_id)
+
 
 def make_response(request: KafkaRequest):
-    response_header = request.correlation_id.to_bytes(4)
+    response_header = struct.pack('>I', request.correlation_id)
     valid_api_versions = [0, 1, 2, 3, 4]
     error_code = (
         ErrorCode.NONE
@@ -33,16 +32,14 @@ def make_response(request: KafkaRequest):
     min_version, max_version = 0, 4
     throttle_time_ms = 0
     tag_buffer = b"\x00"
-    response_body = (
-        error_code.value.to_bytes(2)
-        + int(2).to_bytes(1)
-        + request.api_key.to_bytes(2)
-        + min_version.to_bytes(2)
-        + max_version.to_bytes(2)
-        + tag_buffer
-        + throttle_time_ms.to_bytes(4)
-        + tag_buffer
-    )
+    response_body = struct.pack('>HBHHH', 
+        error_code.value,
+        2,  # int(2).to_bytes(1)
+        request.api_key,
+        min_version,
+        max_version
+    ) + tag_buffer + struct.pack('>I', throttle_time_ms) + tag_buffer
+
     response_length = len(response_header) + len(response_body)
     return int(response_length).to_bytes(4) + response_header + response_body
 
