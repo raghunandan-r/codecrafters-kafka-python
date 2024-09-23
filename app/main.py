@@ -68,10 +68,6 @@ def main():
         finally:
             client.close()
             print(f"Connection from {addr} closed.")
-        
-        # request = KafkaRequest.from_client(client)
-        # print(request)
-        # client.sendall(make_response(request))
 
 if __name__ == "__main__":
     main()
