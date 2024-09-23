@@ -1,10 +1,12 @@
 import socket
 from dataclasses import dataclass
 from enum import Enum, unique
+
 @unique
 class ErrorCode(Enum):
     NONE = 0
     UNSUPPORTED_VERSION = 35
+
 @dataclass
 class KafkaRequest:
     api_key: int
@@ -18,6 +20,7 @@ class KafkaRequest:
             api_version=int.from_bytes(data[6:8]),
             correlation_id=int.from_bytes(data[8:12]),
         )
+
 def make_response(request: KafkaRequest):
     response_header = request.correlation_id.to_bytes(4)
     valid_api_versions = [0, 1, 2, 3, 4]
@@ -41,11 +44,34 @@ def make_response(request: KafkaRequest):
     )
     response_length = len(response_header) + len(response_body)
     return int(response_length).to_bytes(4) + response_header + response_body
+
+def handle_request(client: socket.socket):
+    while True:
+        request = KafkaRequest.from_client(client)
+        if request is None:
+            break
+        print(f"Received request: {request}")
+        response = make_response(request)
+        client.sendall(response)
+        print(f"sent response: {len(response)} in bytes")
+
 def main():
     server = socket.create_server(("localhost", 9092), reuse_port=True)
-    client, _ = server.accept()
-    request = KafkaRequest.from_client(client)
-    print(request)
-    client.sendall(make_response(request))
+
+    while True:
+        client, addr = server.accept()
+        print(f"New request from {addr}")
+        try:
+            handle_request(client)
+        except Exception as e:
+            print(f"Error handling request from client {e}")
+        finally:
+            client.close()
+            print(f"Connection from {addr} closed.")
+        
+        # request = KafkaRequest.from_client(client)
+        # print(request)
+        # client.sendall(make_response(request))
+
 if __name__ == "__main__":
     main()
