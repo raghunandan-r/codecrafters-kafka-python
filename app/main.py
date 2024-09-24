@@ -42,7 +42,8 @@ def make_response(request: KafkaRequest):
         min_api_version,
         max_api_version
     ) + tag_buffer
-    + struct.pack('>HHH', 
+    
+    response_body += struct.pack('>HHH', 
         request.fetch_key,
         min_fetch_version,
         max_fetch_version
