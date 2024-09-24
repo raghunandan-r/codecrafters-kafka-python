@@ -14,11 +14,13 @@ class KafkaRequest:
     api_key: int
     api_version: int
     correlation_id: int
+    fetch_version: int
     @staticmethod
     def from_client(client: socket.socket):
         data = client.recv(2048)
         api_key, api_version, correlation_id = struct.unpack('>HHI', data[4:12])
-        return KafkaRequest(api_key, api_version, correlation_id)
+        fetch_version = 1
+        return KafkaRequest(api_key, api_version, correlation_id, fetch_version)
 
 
 def make_response(request: KafkaRequest):
@@ -29,15 +31,21 @@ def make_response(request: KafkaRequest):
         if request.api_version in valid_api_versions
         else ErrorCode.UNSUPPORTED_VERSION
     )
-    min_version, max_version = 0, 4
+    min_api_version, max_api_version = 0, 4
+    min_fetch_version, max_fetch_version = 0, 16
     throttle_time_ms = 0
     tag_buffer = b"\x00"
     response_body = struct.pack('>HBHHH', 
         error_code.value,
-        2,  # int(2).to_bytes(1)
+        3,  # int(2).to_bytes(1)
         request.api_key,
-        min_version,
-        max_version
+        min_api_version,
+        max_api_version
+    ) + tag_buffer
+    + struct.pack('>HHH', 
+        request.fetch_version,
+        min_fetch_version,
+        max_fetch_version
     ) + tag_buffer + struct.pack('>I', throttle_time_ms) + tag_buffer
 
     response_length = len(response_header) + len(response_body)
