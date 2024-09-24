@@ -19,8 +19,8 @@ class KafkaRequest:
     def from_client(client: socket.socket):
         data = client.recv(2048)
         api_key, api_version, correlation_id = struct.unpack('>HHI', data[4:12])
-        fetch_version = 1
-        return KafkaRequest(api_key, api_version, correlation_id, fetch_version)
+        fetch_key = 1
+        return KafkaRequest(api_key, api_version, correlation_id, fetch_key)
 
 
 def make_response(request: KafkaRequest):
@@ -43,7 +43,7 @@ def make_response(request: KafkaRequest):
         max_api_version
     ) + tag_buffer
     + struct.pack('>HHH', 
-        request.fetch_version,
+        request.fetch_key,
         min_fetch_version,
         max_fetch_version
     ) + tag_buffer + struct.pack('>I', throttle_time_ms) + tag_buffer
