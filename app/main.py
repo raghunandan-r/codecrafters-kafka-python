@@ -14,7 +14,7 @@ class KafkaRequest:
     api_key: int
     api_version: int
     correlation_id: int
-    fetch_version: int
+    fetch_key: int
     @staticmethod
     def from_client(client: socket.socket):
         data = client.recv(2048)
