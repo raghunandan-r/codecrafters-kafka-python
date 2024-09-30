@@ -53,25 +53,24 @@ def make_response_apiversion(request: KafkaRequest):
 
 def make_response_fetch(request: KafkaRequest):
     response_header = struct.pack('>I', request.correlation_id)
-    min_fetch_version, max_fetch_version = 0, 16
+    
     error_code = 0
     throttle_time_ms = 0
     session_id = 0
     responses_count = 0
+    responses = []
     tag_buffer = b"\x00"
-    response_body = struct.pack('>IhII', #>IHII', 
-        throttle_time_ms,
-        error_code,
-        session_id,
-        responses_count
-        # 2,  # int(2).to_bytes(1)
-        # request.fetch_key,
-        # min_fetch_version,
-        # max_fetch_version
-    ) + tag_buffer #+ struct.pack('>I', ) + tag_buffer
 
-    response_length = struct.pack('>I', len(response_header) + len(response_body))
-    return response_length + response_header + response_body
+    response_body = (
+        throttle_time_ms.to_bytes(4)
+        + error_code.to_bytes(2)
+        + session_id.to_bytes(4)
+        + tag_buffer
+        + int(len(responses)).to_bytes(1)
+        + tag_buffer
+    )
+    response_len = len(response_header) + len(response_body)
+    return response_len.to_bytes(4) + response_header + response_body
 
 
 
