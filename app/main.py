@@ -55,7 +55,7 @@ def make_response_fetch(request: KafkaRequest):
     session_id = 0
     responses = []
     tag_buffer = b"\x00"
-    response_body = struct.pack('>IHII', 
+    response_body = struct.pack('>IhII', #>IHII', 
         throttle_time_ms,
         request.error_code.value,
         session_id,
