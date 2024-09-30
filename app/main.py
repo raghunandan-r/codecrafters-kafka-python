@@ -4,6 +4,9 @@ import struct
 from dataclasses import dataclass
 from enum import Enum, unique
 
+FETCH = 1
+VERSIONS = 18
+
 @unique
 class ErrorCode(Enum):
     NONE = 0
@@ -81,7 +84,7 @@ def handle_client(client: socket.socket, addr):
             if request is None:
                 break
             print(f"Received request from {addr}: {request}")
-            if request.api_key == "FETCH":
+            if request.api_key == FETCH:
                 response = make_response_fetch(request)
             else:
                 response = make_response_apiversion(request)
