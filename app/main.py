@@ -14,43 +14,62 @@ class KafkaRequest:
     api_key: int
     api_version: int
     correlation_id: int
-    fetch_key: int
+    fetch_key: int 
+    error_code : ErrorCode
+
     @staticmethod
     def from_client(client: socket.socket):
         data = client.recv(2048)
         api_key, api_version, correlation_id = struct.unpack('>HHI', data[4:12])
         fetch_key = 1
-        return KafkaRequest(api_key, api_version, correlation_id, fetch_key)
+        error_code = (
+            ErrorCode.NONE
+            if api_version in [0, 1, 2, 3, 4]
+            else ErrorCode.UNSUPPORTED_VERSION
+        )
+
+        return KafkaRequest(api_key, api_version, correlation_id, fetch_key, error_code)
 
 
-def make_response(request: KafkaRequest):
+def make_response_apiversion(request: KafkaRequest):
     response_header = struct.pack('>I', request.correlation_id)
-    valid_api_versions = [0, 1, 2, 3, 4]
-    error_code = (
-        ErrorCode.NONE
-        if request.api_version in valid_api_versions
-        else ErrorCode.UNSUPPORTED_VERSION
-    )
+    
     min_api_version, max_api_version = 0, 4
-    min_fetch_version, max_fetch_version = 0, 16
     throttle_time_ms = 0
     tag_buffer = b"\x00"
     response_body = struct.pack('>HBHHH', 
-        error_code.value,
-        3,  # int(2).to_bytes(1)
+        request.error_code.value,
+        2,  # int(2).to_bytes(1)
         request.api_key,
         min_api_version,
         max_api_version
-    ) + tag_buffer
-    
-    response_body += struct.pack('>HHH', 
-        request.fetch_key,
-        min_fetch_version,
-        max_fetch_version
-    ) + tag_buffer + struct.pack('>I', throttle_time_ms) + tag_buffer
+        ) + tag_buffer + struct.pack('>I', throttle_time_ms) + tag_buffer
 
-    response_length = len(response_header) + len(response_body)
-    return int(response_length).to_bytes(4) + response_header + response_body
+    response_length = struct.pack('>I', len(response_header) + len(response_body))
+    return response_length + response_header + response_body
+
+def make_response_fetch(request: KafkaRequest):
+    response_header = struct.pack('>I', request.correlation_id)
+    min_fetch_version, max_fetch_version = 0, 16
+    throttle_time_ms = 0
+    session_id = 0
+    responses = []
+    tag_buffer = b"\x00"
+    response_body = struct.pack('>IHII', 
+        throttle_time_ms,
+        request.error_code.value,
+        session_id,
+        len(responses)
+        # 2,  # int(2).to_bytes(1)
+        # request.fetch_key,
+        # min_fetch_version,
+        # max_fetch_version
+    ) + tag_buffer #+ struct.pack('>I', ) + tag_buffer
+
+    response_length = struct.pack('>I', len(response_header) + len(response_body))
+    return response_length + response_header + response_body
+
+
 
 def handle_client(client: socket.socket, addr):
     print(f"New request from {addr}")
@@ -61,7 +80,10 @@ def handle_client(client: socket.socket, addr):
             if request is None:
                 break
             print(f"Received request from {addr}: {request}")
-            response = make_response(request)
+            if request.api_key == "FETCH":
+                response = make_response_fetch(request)
+            else:
+                response = make_response_apiversion(request)
             client.sendall(response)
             print(f"sent response to {addr}: {len(response)} bytes")
     except Exception as e:
