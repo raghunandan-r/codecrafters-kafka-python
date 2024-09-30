@@ -68,7 +68,7 @@ def make_response_fetch(request: KafkaRequest):
         # request.fetch_key,
         # min_fetch_version,
         # max_fetch_version
-    )# + tag_buffer #+ struct.pack('>I', ) + tag_buffer
+    ) + tag_buffer #+ struct.pack('>I', ) + tag_buffer
 
     response_length = struct.pack('>I', len(response_header) + len(response_body))
     return response_length + response_header + response_body
