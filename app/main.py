@@ -40,13 +40,21 @@ def make_response_apiversion(request: KafkaRequest):
     min_api_version, max_api_version = 0, 4
     throttle_time_ms = 0
     tag_buffer = b"\x00"
-    response_body = struct.pack('>HBHHH', 
+    response_body = struct.pack(
+        '>hBHHHBHHHBIB',
         request.error_code.value,
-        2,  # int(2).to_bytes(1)
-        request.api_key,
-        min_api_version,
-        max_api_version
-        ) + tag_buffer + struct.pack('>I', throttle_time_ms) + tag_buffer
+        3,  # Number of API keys
+        VERSIONS,
+        0,  # Min version for VERSIONS
+        4,  # Max version for VERSIONS
+        0,  # Tag buffer for VERSIONS
+        FETCH,
+        0,  # Min version for FETCH
+        16,  # Max version for FETCH
+        0,  # Tag buffer for FETCH
+        throttle_time_ms,
+        0  # Final tag buffer
+    )
 
     response_length = struct.pack('>I', len(response_header) + len(response_body))
     return response_length + response_header + response_body
@@ -61,11 +69,14 @@ def make_response_fetch(request: KafkaRequest):
     responses = []
     tag_buffer = b"\x00"
 
-    response_body = struct.pack('>IhI', 
+    response_body = struct.pack('>IhIBBB', 
         throttle_time_ms,
         error_code,
-        session_id
-    ) + tag_buffer + struct.pack('>B', len(responses)) + tag_buffer
+        session_id,
+        0, # tag buffer
+        len(responses),
+        0  # tag buffer
+    )
 
     response_len = len(response_header) + len(response_body)
     return response_len.to_bytes(4) + response_header + response_body
