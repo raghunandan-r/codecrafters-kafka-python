@@ -61,14 +61,12 @@ def make_response_fetch(request: KafkaRequest):
     responses = []
     tag_buffer = b"\x00"
 
-    response_body = (
-        throttle_time_ms.to_bytes(4)
-        + error_code.to_bytes(2)
-        + session_id.to_bytes(4)
-        + tag_buffer
-        + int(len(responses)).to_bytes(1)
-        + tag_buffer
-    )
+    response_body = struct.pack('>IhI', 
+        throttle_time_ms,
+        error_code,
+        session_id
+    ) + tag_buffer + struct.pack('>B', len(responses)) + tag_buffer
+
     response_len = len(response_header) + len(response_body)
     return response_len.to_bytes(4) + response_header + response_body
 
