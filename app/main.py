@@ -17,29 +17,25 @@ class KafkaRequest:
     api_key: int
     api_version: int
     correlation_id: int
-    fetch_key: int 
     error_code : ErrorCode
 
     @staticmethod
     def from_client(client: socket.socket):
         data = client.recv(2048)
         api_key, api_version, correlation_id = struct.unpack('>HHI', data[4:12])
-        fetch_key = 1
+        
         error_code = (
             ErrorCode.NONE
             if api_version in [0, 1, 2, 3, 4]
             else ErrorCode.UNSUPPORTED_VERSION
         )
 
-        return KafkaRequest(api_key, api_version, correlation_id, fetch_key, error_code)
+        return KafkaRequest(api_key, api_version, correlation_id, error_code)
 
 
 def make_response_apiversion(request: KafkaRequest):
     response_header = struct.pack('>I', request.correlation_id)
     
-    min_api_version, max_api_version = 0, 4
-    throttle_time_ms = 0
-    tag_buffer = b"\x00"
     response_body = struct.pack(
         '>hBHHHBHHHBIB',
         request.error_code.value,
@@ -50,10 +46,10 @@ def make_response_apiversion(request: KafkaRequest):
         0,  # Tag buffer for VERSIONS
         FETCH,
         0,  # Min version for FETCH
-        16,  # Max version for FETCH
+        16, # Max version for FETCH
         0,  # Tag buffer for FETCH
-        throttle_time_ms,
-        0  # Final tag buffer
+        0,  # throttle_time_ms
+        0   # Final tag buffer
     )
 
     response_length = struct.pack('>I', len(response_header) + len(response_body))
@@ -61,21 +57,15 @@ def make_response_apiversion(request: KafkaRequest):
 
 def make_response_fetch(request: KafkaRequest):
     response_header = struct.pack('>I', request.correlation_id)
-    
-    error_code = 0
-    throttle_time_ms = 0
-    session_id = 0
-    responses_count = 0
     responses = []
-    tag_buffer = b"\x00"
 
     response_body = struct.pack('>IhIBBB', 
-        throttle_time_ms,
-        error_code,
-        session_id,
-        0, # tag buffer
+        0,  # throttle_time_ms,
+        0,  # error_code,
+        0,  # session_id,
+        0,  # tag buffer
         len(responses),
-        0  # tag buffer
+        0   # tag buffer
     )
 
     response_len = len(response_header) + len(response_body)
