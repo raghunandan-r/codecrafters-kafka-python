@@ -24,7 +24,7 @@ class KafkaRequest:
     def from_client(client: socket.socket):
         data = client.recv(2048)
         api_key, api_version, correlation_id = struct.unpack('>HHI', data[4:12])
-        session_id = struct.unpack('>II', data[28:32])
+        
         topic_id = uuid.UUID(bytes=data[36:52])
 
         error_code = (
@@ -33,6 +33,17 @@ class KafkaRequest:
             else ErrorCode.UNSUPPORTED_VERSION
         )
 
+        if api_key == 1 and api_version == 16:
+            try:
+                session_id = struct.unpack('>II', data[28:32])
+                if len(data) >= 52:
+                    topic_id = uuid.UUID(bytes=data[36:52])
+                    print(f"Topic ID: {topic_id}")
+                else:
+                    print("Data too short to include Topic ID")
+
+            except struct.error as e:
+                print(f"Error parsing Fetch request: {e}")                
         return KafkaRequest(api_key, api_version, correlation_id, error_code, session_id, topic_id)
 
 
