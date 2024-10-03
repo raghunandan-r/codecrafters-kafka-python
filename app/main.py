@@ -19,6 +19,8 @@ class KafkaRequest:
     api_version: int
     correlation_id: int
     error_code : ErrorCode
+    session_id : int
+    topic_id : uuid.UUID
 
     @staticmethod
     def from_client(client: socket.socket):
@@ -31,24 +33,24 @@ class KafkaRequest:
             else ErrorCode.UNSUPPORTED_VERSION
         )
 
-        print(f"Received request: API Key: {api_key}, Version: {api_version}, Correlation ID: {correlation_id}")
+        session_id = struct.unpack('>I', data[28:32])
+        topic_id = uuid.UUID(bytes=data[36:52])
+        return KafkaRequest(api_key, api_version, correlation_id, error_code, session_id, topic_id)
+    
+        # if api_key == 1 and api_version == 16:
+        #     try:
+        #         session_id = struct.unpack('>I', data[28:32])
+        #         if len(data) >= 52:
+        #             topic_id = uuid.UUID(bytes=data[36:52])
+        #             print(f"Topic ID: {topic_id}")
+        #         else:
+        #             print("Data too short to include Topic ID")
 
-        if api_key == 1 and api_version == 16:
-            try:
-                session_id = struct.unpack('>I', data[28:32])
-                if len(data) >= 52:
-                    topic_id = uuid.UUID(bytes=data[36:52])
-                    print(f"Topic ID: {topic_id}")
-                else:
-                    print("Data too short to include Topic ID")
-
-            except struct.error as e:
-                print(f"Error parsing Fetch request: {e}")
-            return KafkaRequest(api_key, api_version, correlation_id, error_code, session_id, topic_id)
+        #     except struct.error as e:
+        #         print(f"Error parsing Fetch request: {e}")
+        #     return KafkaRequest(api_key, api_version, correlation_id, error_code, session_id, topic_id)
         
-        else:
-            return KafkaRequest(api_key, api_version, correlation_id, error_code)
-
+    
 
 def make_response_apiversion(request: KafkaRequest):
     response_header = struct.pack('>I', request.correlation_id)
@@ -74,20 +76,27 @@ def make_response_apiversion(request: KafkaRequest):
 
 def make_response_fetch(request: KafkaRequest):
     response_header = struct.pack('>I', request.correlation_id)
-    responses = []
-
-    response_body = struct.pack('>IhIBBB', 
-        0,  # throttle_time_ms,
-        0,  # error_code,
-        0,  # session_id,
-        0,  # tag buffer
-        len(responses),
-        0   # tag buffer
+    
+    # Prepare the response for a single topic with UNKNOWN_TOPIC error
+    topic_response = struct.pack('>16sIhI', 
+        request.topic_id.bytes,  # topic_id (16 bytes UUID)
+        1,                       # num_partitions (1 element)
+        0,                       # partition_index
+        100                      # error_code (UNKNOWN_TOPIC)
     )
 
-    response_len = len(response_header) + len(response_body)
-    return response_len.to_bytes(4) + response_header + response_body
+    # Prepare the main response body
+    response_body = struct.pack('>IhqIB', 
+        0,                 # throttle_time_ms (any value, using 0)
+        0,                 # error_code (0 for No Error)
+        0,                 # session_id (0 as per requirement)
+        1,                 # num_topics (1 element)
+        0                  # tag buffer
+    )
 
+    full_response = response_body + topic_response + b'\x00'  # Add final tag buffer
+    total_length = len(response_header) + len(full_response)
+    length_prefix = struct.pack('>I', total_length)
 
 
 def handle_client(client: socket.socket, addr):
