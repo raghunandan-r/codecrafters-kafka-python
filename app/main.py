@@ -89,7 +89,7 @@ def make_response_fetch(request: KafkaRequest):
     response_body = struct.pack('>IhqIB', 
         0,                 # throttle_time_ms (any value, using 0)
         0,                 # error_code (0 for No Error)
-        0,                 # session_id (0 as per requirement)
+        request.session_id,# session_id (0 as per requirement)
         1,                 # num_topics (1 element)
         0                  # tag buffer
     )
@@ -97,7 +97,7 @@ def make_response_fetch(request: KafkaRequest):
     full_response = response_body + topic_response + b'\x00'  # Add final tag buffer
     total_length = len(response_header) + len(full_response)
     length_prefix = struct.pack('>I', total_length)
-
+    return length_prefix + response_header + full_response
 
 def handle_client(client: socket.socket, addr):
     print(f"New request from {addr}")
