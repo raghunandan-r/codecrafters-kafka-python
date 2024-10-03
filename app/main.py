@@ -65,27 +65,35 @@ def make_response_apiversion(request: KafkaRequest):
 def make_response_fetch(request: KafkaRequest):
     response_header = struct.pack('>I', request.correlation_id)
     
+    # Prepare the main response body
+    response_body = struct.pack('>IhqIB', 
+        0,                 # throttle_time_ms (any value, using 0)
+        0,                 # error_code (0 for No Error)
+        0,                 # session_id (0 as per requirement)
+        1,                 # num_topics (1 element)
+        0                  # tag_buffer
+    )
+
     # Prepare the response for a single topic with UNKNOWN_TOPIC error
-    topic_response = struct.pack('>16sBIhI', 
+    topic_response = struct.pack('>16sIBhIqiIhqB', 
         request.topic_id.bytes,  # topic_id (16 bytes UUID)
         1,                       # num_partitions (1 element)
         0,                       # partition_index
         100,                     # error_code (UNKNOWN_TOPIC)
-        0                        # watermark??
-    )
-
-    # Prepare the main response body
-    response_body = struct.pack('>IhqI', 
-        0,                 # throttle_time_ms (any value, using 0)
-        0,                 # error_code (0 for No Error)
-        0,                 # session_id (0 as per requirement)
-        1                  # num_topics (1 element)
+        -1,                      # high_watermark (-1 for unknown)
+        -1,                      # last_stable_offset (-1 for unknown)
+        0,                       # log_start_offset (0 for unknown)
+        0,                       # num_records (0 for unknown topic)
+        0,                       # preferred_read_replica (-1 for unknown, using 0)
+        0,                       # diverging_epoch (-1 for unknown, using 0)
+        0                        # tag_buffer
     )
 
     full_response = response_body + topic_response
     total_length = len(response_header) + len(full_response)
     length_prefix = struct.pack('>I', total_length)
     return length_prefix + response_header + full_response
+
 
 def handle_client(client: socket.socket, addr):
     print(f"New request from {addr}")
