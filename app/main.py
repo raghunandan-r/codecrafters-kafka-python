@@ -1,3 +1,4 @@
+import binascii
 import socket
 import threading
 import struct
@@ -18,6 +19,32 @@ class KafkaRequest:
     api_version: int
     correlation_id: int
     error_code : ErrorCode
+
+    def parse_and_log_fetch_request(data):
+        try:
+            # Parse known header fields
+            header_size, api_key, api_version, correlation_id = struct.unpack('>IHHI', data[:12])
+            print(f"Header: size={header_size}, api_key={api_key}, api_version={api_version}, correlation_id={correlation_id}")
+
+            # Parse Fetch request specific fields
+            offset = 12  # Start after the header
+            max_wait_ms, min_bytes, max_bytes, isolation_level = struct.unpack('>IIII', data[offset:offset+16])
+            offset += 16
+            session_id, session_epoch = struct.unpack('>II', data[offset:offset+8])
+            offset += 8
+
+            print(f"Fetch Request: max_wait_ms={max_wait_ms}, min_bytes={min_bytes}, max_bytes={max_bytes}")
+            print(f"isolation_level={isolation_level}, session_id={session_id}, session_epoch={session_epoch}")
+
+            # Log the remaining data
+            remaining_data = data[offset:]
+            print(f"Remaining data (hex): {binascii.hexlify(remaining_data).decode()}")
+
+        except struct.error as e:
+            print(f"Error parsing request: {e}")
+            print("Partial parse results:")
+            print(f"Raw data (hex): {binascii.hexlify(data).decode()}")
+
 
     @staticmethod
     def from_client(client: socket.socket):
