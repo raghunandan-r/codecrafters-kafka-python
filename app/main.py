@@ -33,7 +33,7 @@ class KafkaRequest:
             else ErrorCode.UNSUPPORTED_VERSION
         )
 
-        session_id = struct.unpack('>I', data[29:32]) 
+        session_id, = struct.unpack('>I', data[29:33]) 
         topic_id = uuid.UUID(bytes=data[36:52])
         return KafkaRequest(api_key, api_version, correlation_id, error_code, session_id, topic_id)
     
