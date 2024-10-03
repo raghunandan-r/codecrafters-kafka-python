@@ -25,13 +25,13 @@ class KafkaRequest:
         data = client.recv(2048)
         api_key, api_version, correlation_id = struct.unpack('>HHI', data[4:12])
         
-        topic_id = uuid.UUID(bytes=data[36:52])
-
         error_code = (
             ErrorCode.NONE
             if api_version in [0, 1, 2, 3, 4]
             else ErrorCode.UNSUPPORTED_VERSION
         )
+
+        print(f"Received request: API Key: {api_key}, Version: {api_version}, Correlation ID: {correlation_id}")
 
         if api_key == 1 and api_version == 16:
             try:
