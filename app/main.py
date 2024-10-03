@@ -20,12 +20,10 @@ class KafkaRequest:
     correlation_id: int
     error_code : ErrorCode
 
+    @staticmethod
     def parse_and_log_fetch_request(data):
         try:
-            # Parse known header fields
-            header_size, api_key, api_version, correlation_id = struct.unpack('>IHHI', data[:12])
-            print(f"Header: size={header_size}, api_key={api_key}, api_version={api_version}, correlation_id={correlation_id}")
-
+            
             # Parse Fetch request specific fields
             offset = 12  # Start after the header
             max_wait_ms, min_bytes, max_bytes, isolation_level = struct.unpack('>IIII', data[offset:offset+16])
@@ -51,6 +49,8 @@ class KafkaRequest:
         data = client.recv(2048)
         api_key, api_version, correlation_id = struct.unpack('>HHI', data[4:12])
         
+        KafkaRequest.parse_and_log_fetch_request(data)
+
         error_code = (
             ErrorCode.NONE
             if api_version in [0, 1, 2, 3, 4]
