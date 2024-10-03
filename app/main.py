@@ -35,7 +35,7 @@ class KafkaRequest:
 
         if api_key == 1 and api_version == 16:
             try:
-                session_id = struct.unpack('>II', data[28:32])
+                session_id = struct.unpack('>I', data[28:32])
                 if len(data) >= 52:
                     topic_id = uuid.UUID(bytes=data[36:52])
                     print(f"Topic ID: {topic_id}")
