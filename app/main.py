@@ -43,8 +43,11 @@ class KafkaRequest:
                     print("Data too short to include Topic ID")
 
             except struct.error as e:
-                print(f"Error parsing Fetch request: {e}")                
-        return KafkaRequest(api_key, api_version, correlation_id, error_code, session_id, topic_id)
+                print(f"Error parsing Fetch request: {e}")
+            return KafkaRequest(api_key, api_version, correlation_id, error_code, session_id, topic_id)
+        
+        else:
+            return KafkaRequest(api_key, api_version, correlation_id, error_code)
 
 
 def make_response_apiversion(request: KafkaRequest):
