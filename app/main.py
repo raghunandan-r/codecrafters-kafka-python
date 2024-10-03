@@ -1,4 +1,4 @@
-import binascii
+import uuid
 import socket
 import threading
 import struct
@@ -21,35 +21,11 @@ class KafkaRequest:
     error_code : ErrorCode
 
     @staticmethod
-    def parse_and_log_fetch_request(data):
-        try:
-            
-            # Parse Fetch request specific fields
-            offset = 12  # Start after the header
-            max_wait_ms, min_bytes, max_bytes, isolation_level = struct.unpack('>IIII', data[offset:offset+16])
-            offset += 16
-            session_id, session_epoch = struct.unpack('>II', data[offset:offset+8])
-            offset += 8
-
-            print(f"Fetch Request: max_wait_ms={max_wait_ms}, min_bytes={min_bytes}, max_bytes={max_bytes}")
-            print(f"isolation_level={isolation_level}, session_id={session_id}, session_epoch={session_epoch}")
-
-            # Log the remaining data
-            remaining_data = data[offset:]
-            print(f"Remaining data (hex): {binascii.hexlify(remaining_data).decode()}")
-
-        except struct.error as e:
-            print(f"Error parsing request: {e}")
-            print("Partial parse results:")
-            print(f"Raw data (hex): {binascii.hexlify(data).decode()}")
-
-
-    @staticmethod
     def from_client(client: socket.socket):
         data = client.recv(2048)
         api_key, api_version, correlation_id = struct.unpack('>HHI', data[4:12])
-        
-        KafkaRequest.parse_and_log_fetch_request(data)
+        session_id = struct.unpack('>II', data[28:32])
+        topic_id = uuid.UUID(bytes=data[36:52])
 
         error_code = (
             ErrorCode.NONE
@@ -57,7 +33,7 @@ class KafkaRequest:
             else ErrorCode.UNSUPPORTED_VERSION
         )
 
-        return KafkaRequest(api_key, api_version, correlation_id, error_code)
+        return KafkaRequest(api_key, api_version, correlation_id, error_code, session_id, topic_id)
 
 
 def make_response_apiversion(request: KafkaRequest):
