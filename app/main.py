@@ -19,8 +19,8 @@ class KafkaRequest:
     api_version: int
     correlation_id: int
     error_code : ErrorCode
-    session_id : int
-    topic_id : uuid.UUID
+    session_id : int = None
+    topic_id : uuid.UUID = None
 
     @staticmethod
     def from_client(client: socket.socket):
@@ -32,25 +32,13 @@ class KafkaRequest:
             if api_version in [0, 1, 2, 3, 4]
             else ErrorCode.UNSUPPORTED_VERSION
         )
-
-        session_id, = struct.unpack('>I', data[29:33]) 
-        topic_id = uuid.UUID(bytes=data[36:52])
-        return KafkaRequest(api_key, api_version, correlation_id, error_code, session_id, topic_id)
-    
-        # if api_key == 1 and api_version == 16:
-        #     try:
-        #         session_id = struct.unpack('>I', data[28:32])
-        #         if len(data) >= 52:
-        #             topic_id = uuid.UUID(bytes=data[36:52])
-        #             print(f"Topic ID: {topic_id}")
-        #         else:
-        #             print("Data too short to include Topic ID")
-
-        #     except struct.error as e:
-        #         print(f"Error parsing Fetch request: {e}")
-        #     return KafkaRequest(api_key, api_version, correlation_id, error_code, session_id, topic_id)
         
-    
+        session_id, topic_id = None, None
+        if api_key == 1 and api_version == 16:
+            session_id, = struct.unpack('>I', data[29:33]) 
+            topic_id = uuid.UUID(bytes=data[36:52])
+        return KafkaRequest(api_key, api_version, correlation_id, error_code, session_id, topic_id)
+        
 
 def make_response_apiversion(request: KafkaRequest):
     response_header = struct.pack('>I', request.correlation_id)
@@ -82,7 +70,8 @@ def make_response_fetch(request: KafkaRequest):
         request.topic_id.bytes,  # topic_id (16 bytes UUID)
         1,                       # num_partitions (1 element)
         0,                       # partition_index
-        100                      # error_code (UNKNOWN_TOPIC)
+        100,                     # error_code (UNKNOWN_TOPIC)
+        0                        # watermark??
     )
 
     # Prepare the main response body
@@ -90,11 +79,10 @@ def make_response_fetch(request: KafkaRequest):
         0,                 # throttle_time_ms (any value, using 0)
         0,                 # error_code (0 for No Error)
         request.session_id,# session_id (0 as per requirement)
-        1,                 # num_topics (1 element)
-        0                  # tag buffer
+        1                  # num_topics (1 element)
     )
 
-    full_response = response_body + topic_response + b'\x00'  # Add final tag buffer
+    full_response = response_body + topic_response
     total_length = len(response_header) + len(full_response)
     length_prefix = struct.pack('>I', total_length)
     return length_prefix + response_header + full_response
