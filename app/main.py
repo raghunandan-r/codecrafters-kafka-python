@@ -75,7 +75,7 @@ def make_response_fetch(request: KafkaRequest):
     )  # Total: 10 bytes
 
     # Topic Response
-    partitions_response = struct.pack('>BIhqqqii', 
+    partitions_response = struct.pack('>BIhqqqiii', 
         2,   # Number of partitions (1 in this case, but using 2 as in other answers)
         0,   # partition_index (INT32)
         100, # error_code.UNKNOWN_TOPIC (INT16)
