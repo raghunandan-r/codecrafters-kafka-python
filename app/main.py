@@ -34,9 +34,9 @@ class KafkaRequest:
         )
         
         session_id, topic_id = None, None
-        if api_key == 1 and api_version == 16:
-            session_id, = struct.unpack('>I', data[29:33]) 
-            topic_id = uuid.UUID(bytes=data[36:52])
+        #if api_key == 1 and api_version == 16:
+        #    session_id, = struct.unpack('>I', data[29:33]) 
+        #    topic_id = uuid.UUID(bytes=data[36:52])
         return KafkaRequest(api_key, api_version, correlation_id, error_code, session_id, topic_id)
         
 
@@ -75,7 +75,7 @@ def make_response_fetch(request: KafkaRequest):
 
     # Topic Response
     topic_response = struct.pack('>16sIhqqq', 
-        request.topic_id.bytes,  # topic_id (UUID) - 16 bytes
+        1,  # topic_id (UUID) - 16 bytes
         0,    # partition_index (INT32) - 4 bytes
         100,  # error_code (INT16) - 2 bytes
         0,   # high_watermark (INT64) - 8 bytes
