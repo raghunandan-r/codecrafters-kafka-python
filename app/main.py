@@ -76,7 +76,7 @@ def make_response_fetch(request: KafkaRequest):
     # Topic Response
     partitions_response = struct.pack('>Ihqqqii', 
         0,   # partition_index (INT32)
-        ErrorCode.UNKNOWN_TOPIC.value,  # error_code (INT16)
+        100,  # error_code.UNKNOWN_TOPIC (INT16)
         0,   # high_watermark (INT64)
         0,   # last_stable_offset (INT64)
         0,   # log_start_offset (INT64)
