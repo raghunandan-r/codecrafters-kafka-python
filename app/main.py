@@ -95,6 +95,7 @@ def make_response_fetch(request: KafkaRequest):
     full_response = (
         response_header +  # 4 bytes
         response_body +    # 10 bytes
+        struct.pack('>i', 1) +  # Number of topic responses (1 in this case)
         topic_response +   # 62 bytes
         records +          # 4 bytes
         tag_buffer         # 1 byte
