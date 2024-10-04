@@ -74,20 +74,16 @@ def make_response_fetch(request: KafkaRequest):
     )  # Total: 10 bytes
 
     # Topic Response
-    topic_response = struct.pack('>16sIhqqq', 
-        1,  # topic_id (UUID) - 16 bytes
+    topic_response = struct.pack('>16sIhqqqii', 
+        (1).to_bytes(16, byteorder='big'),  # topic_id (UUID) - 16 bytes
         0,    # partition_index (INT32) - 4 bytes
         100,  # error_code (INT16) - 2 bytes
         0,   # high_watermark (INT64) - 8 bytes
         0,   # last_stable_offset (INT64) - 8 bytes
-        0     # log_start_offset (INT64) - 8 bytes
+        0,     # log_start_offset (INT64) - 8 bytes
+        0,     # aborted_transactions INT32 for array length - 4 bytes
+        0,     # preferred_read_replica INT32 - 4 bytes
     )  # Total: 46 bytes
-
-    # Aborted transactions array (empty in this case)
-    aborted_transactions = struct.pack('>i', 0)  # INT32 for array length - 4 bytes
-
-    # Preferred read replica
-    preferred_read_replica = struct.pack('>i', 0)  # INT32 - 4 bytes
 
     # Records (empty in this case)
     records = b'\x00\x00\x00\x00'  # Empty COMPACT_RECORDS - 4 bytes
