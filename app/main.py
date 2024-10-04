@@ -65,37 +65,40 @@ def make_response_apiversion(request: KafkaRequest):
 def make_response_fetch(request: KafkaRequest):
     
     response_header = struct.pack('>I', request.correlation_id)  # 4 bytes
-
+    tag_buffer = b'\x00' # Final TAG_BUFFER
     # Main Response Body
-    response_body = struct.pack('>IhI', 
+    response_body = struct.pack('>IhIB', 
         0,    # throttle_time_ms (INT32) - 4 bytes
         0,    # error_code (INT16) - 2 bytes
-        0     # session_id (INT32) - 4 bytes
+        0,     # session_id (INT32) - 4 bytes
+        2       # Number of partitions (1 in this case, but using 2 as in other answers)
     )  # Total: 10 bytes
 
     # Topic Response
-    partitions_response = struct.pack('>Ihqqqii', 
+    partitions_response = struct.pack('>BIhqqqii', 
+        2,   # Number of partitions (1 in this case, but using 2 as in other answers)
         0,   # partition_index (INT32)
-        100,  # error_code.UNKNOWN_TOPIC (INT16)
+        100, # error_code.UNKNOWN_TOPIC (INT16)
         0,   # high_watermark (INT64)
         0,   # last_stable_offset (INT64)
         0,   # log_start_offset (INT64)
         0,   # aborted_transactions array length (INT32)
-        0   # preferred_read_replica (INT32)
+        0,    # preferred_read_replica (INT32)
+        0    # empty records
     )
     topic_response = (
-        (1).to_bytes(16, byteorder='big') +  # topic_id (UUID)
-        struct.pack('>i', 1) +                  # Number of partitions (1 in this case)
-        partitions_response                     # Partitions response
+        struct.pack('>16s', (1).to_bytes(16, byteorder='big')) +  # topic_id (UUID)
+        partitions_response +                     # Partitions response
+        tag_buffer + tag_buffer + tag_buffer
     )
 
     responses_count = struct.pack('>i', 1)  # Number of topic responses
-    tag_buffer = b'\x00' # Final TAG_BUFFER
+    
 
     full_response = (
         response_header + 
         response_body + 
-        responses_count +
+        tag_buffer +
         topic_response + 
         tag_buffer
     )
