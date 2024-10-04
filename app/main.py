@@ -63,38 +63,54 @@ def make_response_apiversion(request: KafkaRequest):
     return response_length + response_header + response_body
 
 def make_response_fetch(request: KafkaRequest):
-    response_header = struct.pack('>I', request.correlation_id)
     
-    response_body = struct.pack('>IhI', 
-        0,    # throttle_time_ms (INT32)
-        0,    # error_code (INT16)
-        0     # session_id (INT32)
-    )
-    
-    topic_response = struct.pack('>16sIhqqq', 
-        request.topic_id.bytes,  # topic_id (UUID)
-        0,    # partition_index (INT32)
-        100,  # error_code (INT16)
-        -1,   # high_watermark (INT64)
-        -1,   # last_stable_offset (INT64)
-        0     # log_start_offset (INT64)
-    )
-    
-    # Aborted transactions array (empty in this case)
-    aborted_transactions = struct.pack('>i', 0)  # 0 aborted transactions
-    
-    # Preferred read replica
-    preferred_read_replica = struct.pack('>i', -1)  # -1 for unknown
-    
-    # Records (empty in this case)
-    records = b'\x00\x00\x00\x00'  # Empty COMPACT_RECORDS
-    
-    # Combine all parts
-    full_response = response_body + topic_response + aborted_transactions + preferred_read_replica + records + b'\x00'  # Final TAG_BUFFER
+    response_header = struct.pack('>I', request.correlation_id)  # 4 bytes
 
-    total_length = len(response_header) + len(full_response)
-    length_prefix = struct.pack('>I', total_length)
-    return length_prefix + response_header + full_response
+    # Main Response Body
+    response_body = struct.pack('>IhI', 
+        0,    # throttle_time_ms (INT32) - 4 bytes
+        0,    # error_code (INT16) - 2 bytes
+        0     # session_id (INT32) - 4 bytes
+    )  # Total: 10 bytes
+
+    # Topic Response
+    topic_response = struct.pack('>16sIhqqq', 
+        request.topic_id.bytes,  # topic_id (UUID) - 16 bytes
+        0,    # partition_index (INT32) - 4 bytes
+        100,  # error_code (INT16) - 2 bytes
+        0,   # high_watermark (INT64) - 8 bytes
+        0,   # last_stable_offset (INT64) - 8 bytes
+        0     # log_start_offset (INT64) - 8 bytes
+    )  # Total: 46 bytes
+
+    # Aborted transactions array (empty in this case)
+    aborted_transactions = struct.pack('>i', 0)  # INT32 for array length - 4 bytes
+
+    # Preferred read replica
+    preferred_read_replica = struct.pack('>i', 0)  # INT32 - 4 bytes
+
+    # Records (empty in this case)
+    records = b'\x00\x00\x00\x00'  # Empty COMPACT_RECORDS - 4 bytes
+
+    # Final TAG_BUFFER
+    tag_buffer = b'\x00'  # 1 byte
+
+    # Combine all parts
+    full_response = (
+        response_header +  # 4 bytes
+        response_body +    # 10 bytes
+        topic_response +   # 46 bytes
+        aborted_transactions +  # 4 bytes
+        preferred_read_replica +  # 4 bytes
+        records +          # 4 bytes
+        tag_buffer         # 1 byte
+    )  # Total: 73 bytes
+
+    # Calculate and prepend total length
+    total_length = len(full_response)
+    length_prefix = struct.pack('>I', total_length)  # 4 bytes
+    final_response = length_prefix + full_response  # Total: 77 bytes
+    return final_response
 
 
 def handle_client(client: socket.socket, addr):
