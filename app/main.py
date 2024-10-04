@@ -74,38 +74,36 @@ def make_response_fetch(request: KafkaRequest):
     )  # Total: 10 bytes
 
     # Topic Response
-    topic_response = struct.pack('>16sIhqqqii', 
-        (1).to_bytes(16, byteorder='big'),  # topic_id (UUID) - 16 bytes
-        0,    # partition_index (INT32) - 4 bytes
-        100,  # error_code (INT16) - 2 bytes
-        0,   # high_watermark (INT64) - 8 bytes
-        0,   # last_stable_offset (INT64) - 8 bytes
-        0,     # log_start_offset (INT64) - 8 bytes
-        0,     # aborted_transactions INT32 for array length - 4 bytes
-        0,     # preferred_read_replica INT32 - 4 bytes
-    )  # Total: 46 bytes
+    partitions_response = struct.pack('>Ihqqqii', 
+        0,   # partition_index (INT32)
+        ErrorCode.UNKNOWN_TOPIC.value,  # error_code (INT16)
+        0,   # high_watermark (INT64)
+        0,   # last_stable_offset (INT64)
+        0,   # log_start_offset (INT64)
+        0,   # aborted_transactions array length (INT32)
+        -1   # preferred_read_replica (INT32), -1 indicates no preferred replica
+    )
+    topic_response = (
+        request.topic_id.bytes +  # topic_id (UUID)
+        struct.pack('>i', 1) +    # Number of partitions (1 in this case)
+        partitions_response       # Partitions response
+    )
 
-    # Records (empty in this case)
-    records = b'\x00\x00\x00\x00'  # Empty COMPACT_RECORDS - 4 bytes
+    responses_count = struct.pack('>i', 1)  # Number of topic responses
+    tag_buffer = b'\x00' # Final TAG_BUFFER
 
-    # Final TAG_BUFFER
-    tag_buffer = b'\x00'  # 1 byte
-
-    # Combine all parts
     full_response = (
-        response_header +  # 4 bytes
-        response_body +    # 10 bytes
-        struct.pack('>i', 1) +  # Number of topic responses (1 in this case)
-        topic_response +   # 62 bytes
-        records +          # 4 bytes
-        tag_buffer         # 1 byte
-    )  # Total: 73 bytes
+        response_header + 
+        response_body + 
+        responses_count +
+        topic_response + 
+        tag_buffer
+    )
 
-    # Calculate and prepend total length
     total_length = len(full_response)
-    length_prefix = struct.pack('>I', total_length)  # 4 bytes
-    final_response = length_prefix + full_response  # Total: 77 bytes
-    return final_response
+    length_prefix = struct.pack('>I', total_length)
+
+    return length_prefix + full_response
 
 
 def handle_client(client: socket.socket, addr):
