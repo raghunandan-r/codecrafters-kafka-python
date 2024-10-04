@@ -81,12 +81,12 @@ def make_response_fetch(request: KafkaRequest):
         0,   # last_stable_offset (INT64)
         0,   # log_start_offset (INT64)
         0,   # aborted_transactions array length (INT32)
-        -1   # preferred_read_replica (INT32), -1 indicates no preferred replica
+        0   # preferred_read_replica (INT32)
     )
     topic_response = (
-        request.topic_id.bytes +  # topic_id (UUID)
-        struct.pack('>i', 1) +    # Number of partitions (1 in this case)
-        partitions_response       # Partitions response
+        (1).to_bytes(16, byteorder='big') +  # topic_id (UUID)
+        struct.pack('>i', 1) +                  # Number of partitions (1 in this case)
+        partitions_response                     # Partitions response
     )
 
     responses_count = struct.pack('>i', 1)  # Number of topic responses
